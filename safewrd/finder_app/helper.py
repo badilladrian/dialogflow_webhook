@@ -13,7 +13,7 @@ import time
 import functools
 from functools import partial
 import json
-from toredis import Client as RedisClient
+from redis import Redis, StrictRedis
 from math import radians, cos, sin, asin, sqrt
 
 """ helper classes """
@@ -154,8 +154,7 @@ class WebSocketClient(WebSocketClientBase):
         self.drone_vec = drone_vec  # drone status vector that will be updated.
         self.topics_to_subscribe = sub_topics
         self.msglib = MsgStructs(self.namespace, throttle_rate)
-        self.redis = RedisClient()
-        self.redis.connect('localhost')
+        self.redis = StrictRedis(host='localhost')
         super(WebSocketClient, self).__init__()
 
     def _on_message(self, msg):
@@ -163,7 +162,7 @@ class WebSocketClient(WebSocketClientBase):
             res = json.loads(msg)
             ioloop.IOLoop.instance().add_callback(partial(self.parse_msg, res))
         except ValueError:
-            print "json decoding failed"
+            print("json decoding failed")
 
     def _on_connection_success(self):
         print('Drone Connected! ', self.vehicle_id)
@@ -276,12 +275,12 @@ class DroneRemoteAccess(object):
         success, resp = yield self.local_sp(x,y,z,yaw,yaw_valid,True)
         if not success:
             if re_count <= max_error_retries:
-                print "Request failed, sending command again: retry no. ", re_count
+                print("Request failed, sending command again: retry no. ", re_count)
                 re_count += 1
                 success, resp = yield self.local_sp(x,y,z,yaw,yaw_valid,True,max_error_retries,re_count)
                 raise gen.Return((success, resp))
             else:
-                print "max error retries reached, sending last value"
+                print("max error retries reached, sending last value")
                 raise gen.Return((False, resp))
         else:
             raise gen.Return((True, resp))

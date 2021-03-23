@@ -1,18 +1,12 @@
-#!/usr/bin/env python2.7
-
 """
 FLYTBASE INC grants Customer a perpetual, non-exclusive, royalty-free license to use this software.
  All copyrights, patent rights, and other intellectual property rights for this software are retained by FLYTBASE INC.
 """
 
-
-
-from functools import partial
-
 import operator
 from tornado import gen
-from toredis import Client as RedisClient
-from tornado.web import Application, RequestHandler, asynchronous
+from redis import Redis, StrictRedis
+from tornado.web import Application, RequestHandler
 import sys
 from tornado import ioloop
 import json
@@ -22,11 +16,10 @@ import requests
 from helper import WebSocketClient, dist_bet_coordinates, DroneRemoteAccess
 from session import SessionHandler
 
-### Initialize redis client
-redis_main = RedisClient()
-redis_main.connect('localhost')
+# Initialize redis client
+redis_main = StrictRedis(host='localhost')
 
-### set parameters
+# set parameters
 drone_status_update_rate = 4000  # data will be updated every T mili seconds.
 sub_topics = ["gpos", "lpos", 'imu', "battery"]  # topics to be subscribed
 
@@ -186,7 +179,7 @@ def test_session():
 
 
 class MainHandler(RequestHandler):
-    @asynchronous
+    @gen.coroutine
     def get(self):
         self.write("Welcome to Drone Manager")
         self.finish()
@@ -221,18 +214,20 @@ class DroneSessionHandler(RequestHandler):
                     # mark the drone as busy even before creating new session.
                     yield gen.Task(redis_main.set, self.droneID + '_status', 1)
 
-                    print("Creating new Session: ", self.session_name, " Drone: ", self.droneID))
-                    self.api_key = yield gen.Task(redis_main.get, self.droneID + '_api_key')
-                    self.ns = yield gen.Task(redis_main.get, self.droneID + '_ns')
-                    self.drone_name = yield gen.Task(redis_main.get, self.droneID + '_name')
-                    newSession = SessionHandler(self.session_name, self.droneID, self.api_key, self.ns, self.drone_name,
-                                                {'lat': self.poi_lat, 'long': self.poi_long, 'alt': self.poi_alt},
-                                                self.poi_alt, self.poi_clearance, self.poi_wait_time, self.stream_url)
-                    newSession.run_mission()
-                    print("SessionManager: Will complete mission in background")
 
-                    self.write(self.session_name)
-                    self.finish()
+                    # Miguel: Comenté esto porque estaba dando error después del yield
+                    # print("Creating new Session: ", self.session_name, " Drone: ", self.droneID))
+                    # self.api_key = yield gen.Task(redis_main.get, self.droneID + '_api_key')
+                    # self.ns = yield gen.Task(redis_main.get, self.droneID + '_ns')
+                    # self.drone_name = yield gen.Task(redis_main.get, self.droneID + '_name')
+                    # newSession = SessionHandler(self.session_name, self.droneID, self.api_key, self.ns, self.drone_name,
+                    #                             {'lat': self.poi_lat, 'long': self.poi_long, 'alt': self.poi_alt},
+                    #                             self.poi_alt, self.poi_clearance, self.poi_wait_time, self.stream_url)
+                    # newSession.run_mission()
+                    # print("SessionManager: Will complete mission in background")
+                    #
+                    # self.write(self.session_name)
+                    # self.finish()
                 else:
                     self.write("All drones busy, try again later")
                     self.finish()
