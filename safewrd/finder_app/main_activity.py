@@ -5,7 +5,7 @@ FLYTBASE INC grants Customer a perpetual, non-exclusive, royalty-free license to
 
 import operator
 from tornado import gen
-from redis import Redis, StrictRedis
+from redis import Redis, StrictRedis, ConnectionPool
 from tornado.web import Application, RequestHandler
 import sys
 from tornado import ioloop
@@ -17,7 +17,7 @@ from helper import WebSocketClient, dist_bet_coordinates, DroneRemoteAccess
 from session import SessionHandler
 
 # Initialize redis client
-redis_main = StrictRedis(host='localhost')
+redis_main = Redis(host='localhost')
 
 # set parameters
 drone_status_update_rate = 4000  # data will be updated every T mili seconds.
@@ -167,7 +167,7 @@ def find_available_drone(lat, long):
         raise gen.Return(False)
 
 
-@gen.engine
+@gen.coroutine
 def test_session():
     newSession = SessionHandler('S001', 'abcd123', '6gi14TJq', '84d440b0ba95c19ccd8e56a2cf0e540694798850', 'flytsim',
                                 'SFRD001', {'lat': 37.430289043924745, 'long': -122.08234190940857, 'alt': 10.},
