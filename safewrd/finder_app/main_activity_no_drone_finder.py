@@ -11,8 +11,8 @@ from functools import partial
 
 import operator
 from tornado import gen
-from toredis import Client as RedisClient
-from tornado.web import Application, RequestHandler, asynchronous
+from redis import Redis
+from tornado.web import Application, RequestHandler
 import sys
 from tornado import ioloop
 import json
@@ -22,9 +22,8 @@ import requests
 from helper import WebSocketClient, dist_bet_coordinates, DroneRemoteAccess
 from session import SessionHandler
 
-### Initialize redis client
-redis_main = RedisClient()
-redis_main.connect('localhost')
+# Initialize redis client
+redis_main = Redis(host='localhost')
 
 ### set parameters
 drone_status_update_rate = 4000  # data will be updated every T mili seconds.
@@ -77,13 +76,13 @@ def confirm_drones(drone_list):
                         drone_temp['namespace'] = ns
                         liveDrones.append(drone_temp)
                 except ValueError:
-                    print "wrong result"
+                    print("wrong result")
             elif resp.status_code == 404:
-                print drone["vehicle_id"], "Drone not reachable, discarding!"
+                print(drone["vehicle_id"], "Drone not reachable, discarding!")
             else:
-                print resp.status_code, " Error, discarding drone"
+                print(resp.status_code, " Error, discarding drone")
         except (requests.ConnectionError, requests.Timeout):
-            print "No internet connection"
+            print("No internet connection")
     return liveDrones
 
 
@@ -163,14 +162,14 @@ def find_available_drone(lat, long):
             try:
                 closest_drone = min(a_drones.iteritems(), key=operator.itemgetter(1))[0]
             except ValueError:
-                print "DroneFinder: black hole situation"
+                print("DroneFinder: black hole situation")
             # todo validate again if closest drone is available
             raise gen.Return(closest_drone)
         else:
-            print "DroneFinder: No available drones"
+            print("DroneFinder: No available drones")
             raise gen.Return(False)
     except (ValueError, KeyError, IndexError) as error:
-        print error, error.args, "DroneFinder: decode failed"
+        print(error, error.args, "DroneFinder: decode failed")
         raise gen.Return(False)
 
 
@@ -186,7 +185,7 @@ def test_session():
 
 
 class MainHandler(RequestHandler):
-    @asynchronous
+    @gen.coroutine
     def get(self):
         self.write("Welcome to Drone Manager")
         self.finish()
@@ -195,7 +194,7 @@ ws_clients = []
 class DroneSessionHandler(RequestHandler):
     @gen.coroutine
     def post(self):
-        print 'oi'
+        print ('oi')
         if self.request.headers["Content-Type"].startswith("application/json"):
             dataJ = self.request.body.decode("UTF-8")
             try:
@@ -237,7 +236,7 @@ class DroneSessionHandler(RequestHandler):
                     # mark the drone as busy even before creating new session.
                     yield gen.Task(redis_main.set, self.droneID + '_status', 1)
 
-                    print "Creating new Session: ", self.session_name, " Drone: ", self.droneID
+                    print("Creating new Session: ", self.session_name, " Drone: ", self.droneID)
                     self.api_key = yield gen.Task(redis_main.get, self.droneID + '_api_key')
                     self.ns = yield gen.Task(redis_main.get, self.droneID + '_ns')
                     self.drone_name = yield gen.Task(redis_main.get, self.droneID + '_name')
@@ -245,7 +244,7 @@ class DroneSessionHandler(RequestHandler):
                                                 {'lat': self.poi_lat, 'long': self.poi_long, 'alt': self.poi_alt},
                                                 self.poi_alt, self.poi_clearance, self.poi_wait_time, self.stream_url)
                     newSession.run_mission()
-                    print "SessionManager: Will complete mission in background"
+                    print("SessionManager: Will complete mission in background")
 
                     self.write(self.session_name)
                     self.finish()
@@ -253,7 +252,7 @@ class DroneSessionHandler(RequestHandler):
                     self.write("All drones busy, try again later")
                     self.finish()
             except (ValueError, KeyError) as error:
-                print "session request decode failed ", error
+                print("session request decode failed ", error)
                 self.set_status(400, "unsupported input, JSON required")
                 self.finish()
         else:
@@ -278,7 +277,7 @@ class SessionAccessHandler(RequestHandler):
                 # print session_status
                 if session_status:
                     if session_status == '4':
-                        print "RemoteAccess: session ready, trying to acquire drone access lock"
+                        print("RemoteAccess: session ready, trying to acquire drone access lock")
 
                         # gather session and drone information
                         yield gen.Task(redis_main.set, self.session_id + '_status', 100)
@@ -293,31 +292,31 @@ class SessionAccessHandler(RequestHandler):
 
                         # Submit the request to drone
                         self.ActionController = DroneRemoteAccess(self.drone_veh_id, self.drone_api_key, self.drone_ns)
-                        print "RemoteAccess: Got the lock for 10 sec, performing action"
+                        print("RemoteAccess: Got the lock for 10 sec, performing action")
                         success, resp = yield self.ActionController.attain_local_setpoint(self.sp_x, self.sp_y, self.sp_z,
                                                                           self.sp_yaw, self.sp_yaw_valid )
                         if success:
-                            print "RemoteAccess: Remote Request success: ", resp
+                            print("RemoteAccess: Remote Request success: ", resp)
                         else:
-                            print "RemoteAccess: Remote Request failed: ", resp
+                            print("RemoteAccess: Remote Request failed: ", resp)
 
                         # keep the drone at that spot for next 10 seconds
                         yield gen.sleep(10.)
 
                         # release the lock
                         yield gen.Task(redis_main.set, self.session_id + '_status', 4)
-                        print "RemoteAccess: Released lock"
+                        print("RemoteAccess: Released lock")
                         self.finish()
                     else:
-                        print "RemoteAccess: session busy"
+                        print("RemoteAccess: session busy")
                         self.set_status(428, "session busy")
                         self.finish()
                 else:
-                    print "session not available"
+                    print("session not available")
                     self.set_status(401, "Wrong session ID")
                     self.finish()
             except (ValueError, KeyError) as error:
-                print "session access request decode failed ", error
+                print("session access request decode failed ", error)
                 self.set_status(400, "unsupported input, JSON required")
                 self.finish()
         else:

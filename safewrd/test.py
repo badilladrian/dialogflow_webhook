@@ -5,8 +5,6 @@ import urllib
 import time
 from tornado import httpclient
 from tornado.httpclient import AsyncHTTPClient
-
-from tornado.web import RequestHandler, asynchronous
 from tornado import gen
 from math import radians, cos, sin, asin, sqrt
 import hashlib
@@ -239,7 +237,7 @@ def go(drone_id):
                 print('Wait for sec : ', wait_time)
                 # yield gen.sleep(wait_time)
                 drone[drone_id]['going_to'] = 'Home'
-                print "Mission Complete Returning to home"
+                print("Mission Complete Returning to home")
                 go_home(drone_id)
 
                 # def hand_resp(response):
@@ -326,7 +324,7 @@ def hold(drone_id,wait_time):
     header = drone[drone_id]['header']
     @gen.engine
     def hold_resp(response):
-        print "Drone Paused"
+        print("Drone Paused")
         update_status()
         drone[drone_id]['hold_mission']['last_going_to'] = drone[drone_id]['going_to']
         drone[drone_id]['going_to'] = 'Hold'
@@ -389,7 +387,7 @@ def doit(drone_id,drone_json,wait_time):
     print (body)
     def todo_handle(response):
         print (response.body)
-        print drone[drone_id], "respond received : "
+        print(drone[drone_id], "respond received : ")
         if response.error:
             print("Error: %s" % response.error)
         else:
@@ -402,7 +400,7 @@ def doit(drone_id,drone_json,wait_time):
 # end intrept process
 
 class DroneHandler(tornado.web.RequestHandler):
-    @asynchronous
+    @gen.engine
     def post(self):
         if self.request.headers["Content-Type"].startswith("application/json"):
             global drone
@@ -442,7 +440,7 @@ class DroneHandler(tornado.web.RequestHandler):
             drone[available_drone]['mission_wait'] = self.json_args["wait_time"]
             drone[available_drone]['mission_token'] = mission_token
 
-            print "Current Location at takeoff point is set as home location"
+            print("Current Location at takeoff point is set as home location")
             drone[available_drone]['home_location']['lat'] = drone[available_drone]['location']['lat']
             drone[available_drone]['home_location']['lng'] = drone[available_drone]['location']['lng']
             # start_stream(available_drone)
@@ -454,7 +452,6 @@ class DroneHandler(tornado.web.RequestHandler):
 
 
 class Dronedo(tornado.web.RequestHandler):
-    @asynchronous
     @gen.engine
     def post(self,id):
         if self.request.headers["Content-Type"].startswith("application/json"):
@@ -521,7 +518,6 @@ class Dronedo(tornado.web.RequestHandler):
 
 
 class Droneget(tornado.web.RequestHandler):
-    @asynchronous
     @gen.engine
     def post(self,id):
         if self.request.headers["Content-Type"].startswith("application/json"):

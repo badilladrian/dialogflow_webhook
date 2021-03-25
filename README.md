@@ -1,3 +1,4 @@
 # safewrd_drone
 
-Giovanni Fonseca
+Python version: 3.8.0
+
