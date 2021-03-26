@@ -16,7 +16,8 @@ import time
 import requests
 
 from helper import WebSocketClient, dist_bet_coordinates, DroneRemoteAccess
-from session import SessionHandler
+# from session import SessionHandler
+from redis_session.tornado_session import SessionHandler
 
 # Initialize redis client
 redis_main = Redis(host='localhost')
@@ -123,7 +124,7 @@ def confirm_drones(drone_list):
 #         except ValueError:
 #             print("drone json array decode failed"
 
-async def async_find_available_drone(lat, long):    
+async def find_available_drone(lat, long):    
     """
     Query all current vehicle topics and query their status.
     Find list of all available drones.
