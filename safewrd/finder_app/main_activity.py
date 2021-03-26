@@ -4,7 +4,9 @@ FLYTBASE INC grants Customer a perpetual, non-exclusive, royalty-free license to
 """
 
 import operator
-from tornado import gen
+
+import asyncio
+from tornado.concurrent import Future 
 from redis import Redis, StrictRedis, ConnectionPool
 from tornado.web import Application, RequestHandler
 import sys
@@ -121,8 +123,7 @@ def confirm_drones(drone_list):
 #         except ValueError:
 #             print("drone json array decode failed"
 
-@gen.coroutine
-def find_available_drone(lat, long):
+async def async_find_available_drone(lat, long):    
     """
     Query all current vehicle topics and query their status.
     Find list of all available drones.
@@ -131,7 +132,8 @@ def find_available_drone(lat, long):
     Go for second closest.
     :return:
     """
-    list_drones = yield gen.Task(redis_main.get, "vehicles")
+    list_drones = await asyncio.Task(redis_main.get, "vehicles")
+    
     try:
         list_drones = json.loads(list_drones)
         dronelist = list_drones.keys()
@@ -139,7 +141,7 @@ def find_available_drone(lat, long):
         available_drones = []
         for drone in dronelist:
             # if drone is available use it otherwise discard.
-            status = yield gen.Task(redis_main.get, drone + '_status')
+            status = await asyncio.Task(redis_main.get, drone + '_status')
             if status == '0':
                 available_drones.append(drone)
         # print(available_drones, "available"
@@ -147,7 +149,7 @@ def find_available_drone(lat, long):
             a_drones = {}
             for drone in available_drones:
                 # for each available drone find it's location.
-                locationJ = yield gen.Task(redis_main.get, drone + '_gpos')
+                locationJ = await asyncio.Task(redis_main.get, drone + '_gpos')
                 location = json.loads(locationJ)
                 dist = dist_bet_coordinates(long, lat, location['long'], location['lat'])
                 a_drones[drone] = dist
@@ -158,36 +160,35 @@ def find_available_drone(lat, long):
             except ValueError:
                 print("DroneFinder: black hole situation")
             # todo validate again if closest drone is available
-            raise gen.Return(closest_drone)
+            raise await asyncio(closest_drone)
         else:
             print("DroneFinder: No available drones")
-            raise gen.Return(False)
+            raise await asyncio.Return(False)
+        
     except (ValueError, KeyError, IndexError) as error:
         print(error, error.args, "DroneFinder: decode failed")
-        raise gen.Return(False)
+        raise await asyncio.Return(False)
 
 
-@gen.coroutine
-def test_session():
+async def test_session():
     newSession = SessionHandler('S001', 'abcd123', '6gi14TJq', '84d440b0ba95c19ccd8e56a2cf0e540694798850', 'flytsim',
                                 'SFRD001', {'lat': 37.430289043924745, 'long': -122.08234190940857, 'alt': 10.},
                                 10., 20., "rtmp://40.69.56.29:1935/livedrone/myStream")
     # newSession = SessionHandler('S001', 'abcd123', 'r6nRDos0', '84d440b0ba95c19ccd8e56a2cf0e540694798850','flytsim',
     #                             'SFRD001', {'lat':37.42963991886908,'long':-122.08431735634804, 'alt':10.},
     #                             10.,10.,"rtmp://40.69.56.29:1935/livedrone/myStream")
-    yield newSession.run_mission()
+    
+    await newSession.run_mission()
 
 
 class MainHandler(RequestHandler):
-    @gen.coroutine
-    def get(self):
+    async def get(self):
         self.write("Welcome to Drone Manager")
         self.finish()
 
 
 class DroneSessionHandler(RequestHandler):
-    @gen.coroutine
-    def post(self):
+    async def post(self):
         if self.request.headers["Content-Type"].startswith("application/json"):
             dataJ = self.request.body.decode("UTF-8")
             try:
@@ -206,14 +207,15 @@ class DroneSessionHandler(RequestHandler):
                 # valid request. Verify if app is ready, if not ask user to try again.
                 # if app ready, check if a drone is available, if not ask user to try again.
                 # if drone available, create new session, return session ID to user.
-                available_drone = yield find_available_drone(self.poi_lat, self.poi_long)
+                
+                # available_drone = yield find_available_drone(self.poi_lat, self.poi_long)
+                available_drone = await find_available_drone(self.poi_lat, self.poi_long)                
                 if available_drone:
                     # start the session, first part.
                     self.session_name = 'S00' + str(int(time.time() * 10000))
                     self.droneID = available_drone
                     # mark the drone as busy even before creating new session.
-                    yield gen.Task(redis_main.set, self.droneID + '_status', 1)
-
+                    await asyncio.Task(redis_main.set, self.droneID + '_status', 1)
 
                     # Miguel: Comenté esto porque estaba dando error después del yield
                     # print("Creating new Session: ", self.session_name, " Drone: ", self.droneID))
@@ -241,8 +243,7 @@ class DroneSessionHandler(RequestHandler):
 
 
 class SessionAccessHandler(RequestHandler):
-    @gen.coroutine
-    def post(self):
+    async def post(self):
         if self.request.headers["Content-Type"].startswith("application/json"):
             dataJ = self.request.body.decode("UTF-8")
             try:
@@ -253,15 +254,18 @@ class SessionAccessHandler(RequestHandler):
                 self.sp_z = data['setpoint']['z']
                 self.sp_yaw = data['setpoint']['yaw']
                 self.sp_yaw_valid = data['setpoint']['yaw_valid']
-                session_status = yield gen.Task(redis_main.get, self.session_id+'_status')
+                session_status = await asyncio.Task(redis_main.get, self.session_id+'_status')
+                
                 # print(session_status
                 if session_status:
                     if session_status == '4':
                         print("RemoteAccess: session ready, trying to acquire drone access lock")
 
                         # gather session and drone information
-                        yield gen.Task(redis_main.set, self.session_id + '_status', 100)
-                        session_info_g = yield gen.Task(redis_main.get, self.session_id+'_info')
+                        await asyncio.Task(redis_main.set, self.session_id + '_status', 100)
+                        
+                        session_info_g = await  asyncio.Task(redis_main.get, self.session_id+'_info')
+                        
                         session_info = json.loads(session_info_g)
                         self.drone_veh_id = session_info['vehicle_id']
                         self.drone_api_key = session_info['api_key']
@@ -281,10 +285,11 @@ class SessionAccessHandler(RequestHandler):
                             print("RemoteAccess: Remote Request failed: ", resp)
 
                         # keep the drone at that spot for next 10 seconds
-                        yield gen.sleep(10.)
+                        await asyncio.sleep(10.)
 
                         # release the lock
-                        yield gen.Task(redis_main.set, self.session_id + '_status', 4)
+                        await asyncio.Task(redis_main.set, self.session_id + '_status', 4)
+                        
                         print("RemoteAccess: Released lock")
                         self.finish()
                     else:
