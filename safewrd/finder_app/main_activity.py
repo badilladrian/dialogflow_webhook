@@ -209,7 +209,6 @@ class DroneSessionHandler(RequestHandler):
                 # if app ready, check if a drone is available, if not ask user to try again.
                 # if drone available, create new session, return session ID to user.
                 
-                # available_drone = yield find_available_drone(self.poi_lat, self.poi_long)
                 available_drone = await find_available_drone(self.poi_lat, self.poi_long)                
                 if available_drone:
                     # start the session, first part.
@@ -219,18 +218,19 @@ class DroneSessionHandler(RequestHandler):
                     await asyncio.Task(redis_main.set, self.droneID + '_status', 1)
 
                     # Miguel: Comenté esto porque estaba dando error después del yield
-                    # print("Creating new Session: ", self.session_name, " Drone: ", self.droneID))
-                    # self.api_key = yield gen.Task(redis_main.get, self.droneID + '_api_key')
-                    # self.ns = yield gen.Task(redis_main.get, self.droneID + '_ns')
-                    # self.drone_name = yield gen.Task(redis_main.get, self.droneID + '_name')
-                    # newSession = SessionHandler(self.session_name, self.droneID, self.api_key, self.ns, self.drone_name,
-                    #                             {'lat': self.poi_lat, 'long': self.poi_long, 'alt': self.poi_alt},
-                    #                             self.poi_alt, self.poi_clearance, self.poi_wait_time, self.stream_url)
-                    # newSession.run_mission()
-                    # print("SessionManager: Will complete mission in background")
+                    # Giovanni: Actualice los metodos del Tornado y corrigio el problema que comento Miguel
+                    print("Creating new Session: ", self.session_name, " Drone: ", self.droneID)
+                    self.api_key = await asyncio.Task(redis_main.get, self.droneID + '_api_key')
+                    self.ns = await asyncio.Task(redis_main.get, self.droneID + '_ns')
+                    self.drone_name = await asyncio.Task(redis_main.get, self.droneID + '_name')
+                    newSession = SessionHandler(self.session_name, self.droneID, self.api_key, self.ns, self.drone_name,
+                                                {'lat': self.poi_lat, 'long': self.poi_long, 'alt': self.poi_alt},
+                                                self.poi_alt, self.poi_clearance, self.poi_wait_time, self.stream_url)
+                    newSession.run_mission()
+                    print("SessionManager: Will complete mission in background")
                     #
-                    # self.write(self.session_name)
-                    # self.finish()
+                    self.write(self.session_name)
+                    self.finish()
                 else:
                     self.write("All drones busy, try again later")
                     self.finish()
