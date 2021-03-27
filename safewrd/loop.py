@@ -1,3 +1,4 @@
+import asyncio
 import tornado.ioloop
 import tornado.web
 import json
@@ -6,7 +7,7 @@ import time
 from tornado import httpclient
 from tornado import httputil
 from tornado.web import RequestHandler, asynchronous
-from tornado import gen
+#GFM from tornado import gen
 
 
 count = 1
@@ -19,9 +20,9 @@ def counter():
 
 
 class DroneHandler(tornado.web.RequestHandler):
-    @asynchronous
-    @gen.engine
-    def get(self, drone_id):
+    #@asynchronous
+    #@gen.engine
+    async def get(self, drone_id):
         global count
         # try:
         #     drone_id = int(drone_id)
@@ -33,19 +34,15 @@ class DroneHandler(tornado.web.RequestHandler):
         #     print('count not changed:{}'.format(count))
         print (count)
 
-        yield gen.sleep(5)
+        #GFM yield gen.sleep(5)
+        await asyncio.sleep(5)
         responce= {"count" :count }
         self.write(responce)
         self.finish()
 
 
-
-
     def post(self,id):
         global count
-
-
-
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
@@ -56,7 +53,6 @@ def make_app():
         (r"/", MainHandler),
         (r"/drone/(.*)", DroneHandler),
     ])
-
 
 
 if __name__ == "__main__":
