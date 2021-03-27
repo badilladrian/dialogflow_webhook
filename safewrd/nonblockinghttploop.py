@@ -7,7 +7,7 @@ from tornado import httpclient
 from tornado.httpclient import AsyncHTTPClient
 
 from tornado.web import RequestHandler, asynchronous
-from tornado import gen
+#GFM from tornado import gen
 
 dron = {
     1: {'header': {
@@ -21,7 +21,6 @@ dron = {
             'battery' : 0
         }
     }
-
 
 
 def takeoff(header,alt):
@@ -44,8 +43,8 @@ def update_status():
     print(count)
 
 class DroneHandler(tornado.web.RequestHandler):
-    @asynchronous
-    def post(self, id):
+    #GFM @asynchronous
+    async def post(self, id):
         alt = int(id)
         global dron
         header = dron[1]['header']
