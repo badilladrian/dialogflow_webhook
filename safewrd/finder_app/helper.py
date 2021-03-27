@@ -9,7 +9,7 @@ import tornado.ioloop
 from tornado import ioloop
 from tornado.iostream import IOStream
 
-from tornado import gen
+#from tornado import gen
 from tornado import httpclient
 from tornado import httputil
 from tornado import websocket

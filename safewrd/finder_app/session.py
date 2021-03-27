@@ -3,10 +3,18 @@ FLYTBASE INC grants Customer a perpetual, non-exclusive, royalty-free license to
  All copyrights, patent rights, and other intellectual property rights for this software are retained by FLYTBASE INC.
 """
 
+from asyncio.tasks import wait
 import json
 
+# Change of the library for Tornado 6.1
+#Giovanni Fonseca
+import asyncio
+import tornado.ioloop
+from tornado import ioloop
+from tornado.iostream import IOStream
+
 from redis import Redis
-from tornado import gen
+# GFM from tornado import gen
 from tornado.httpclient import AsyncHTTPClient
 
 from gps_helper import get_offset_location, dist_ang_betn_coordinates
@@ -44,42 +52,52 @@ class SessionHandler(object):
         self.http_client = AsyncHTTPClient()
         self.init_redis_structs()
 
-    @gen.coroutine
-    def init_redis_structs(self):
+    # @gen.coroutine
+    async def init_redis_structs(self):
         #  initialize session structure and upload to redis server. No need to update this later
         session_struct = json.dumps({"vehicle_id": self.vehicle_id, "session_key": "removed_key",
                                      "api_key": self.api_key, "ns": self.ns})
-        yield gen.Task(self.redis.set, self.session_id + "_info", session_struct)
+        #GFM yield gen.Task(self.redis.set, self.session_id + "_info", session_struct)
+        await asyncio.Task(self.redis.set, self.session_id + "_info", session_struct)
 
         # initialize status structure for session on redis. This should be updated after state change.
-        yield gen.Task(self.redis.set, self.session_id + "_status", self.status)
+        #GFM yield gen.Task(self.redis.set, self.session_id + "_status", self.status)
+        await asyncio.Task(self.redis.set, self.session_id + "_status", self.status)
+
+
 
         #  update sessions structure. No need to update this.
-        cur_sessions = yield gen.Task(self.redis.get, "sessions")
+        #GFM cur_sessions = yield gen.Task(self.redis.get, "sessions")
+        cur_sessions = await asyncio.Task(self.redis.get, "sessions")
         try:
             cur_sessions = json.loads(cur_sessions)
             updated_sessions = cur_sessions.copy()
             updated_sessions[self.session_id] = {"session_key": "removed"}
-            yield gen.Task(self.redis.set, "sessions", updated_sessions)
+            #GFM yield gen.Task(self.redis.set, "sessions", updated_sessions)
+            await asyncio.Task(self.redis.set, "sessions", updated_sessions)
         except ValueError:
             print("session JSON decode error")
 
-    @gen.coroutine
-    def run_mission(self):
+    #GFM @gen.coroutine
+    async def run_mission(self):
         # todo "make sure app is initialized"
-        yield gen.sleep(5.0)
+        #GFM yield gen.sleep(5.0)
+        await asyncio.sleep(5.0)
         if self.status == -1 and self.fuse:
             print("Session Handler: Initialized, starting stream")
-            success, resp = yield self.start_stream()
+            #GFM success, resp = yield self.start_stream()
+            success, resp = await self.start_stream()
             if success:
                 print("Session Handler: Request success: ", resp)
             else:
                 print("Session Handler: Request failed: ", resp)
             self.status = 0
-            yield gen.Task(self.redis.set, self.session_id + "_status", self.status)
+            #GFM yield gen.Task(self.redis.set, self.session_id + "_status", self.status)
+            await asyncio.Task(self.redis.set, self.session_id + "_status", self.status)
         if self.status == 0 and self.fuse:
             # save home location.
-            self.home = yield self.get_drone_state()
+            #GFM self.home = yield self.get_drone_state()
+            self.home = await self.get_drone_state()
 
             # Update the target clearance distance away from POI
             offset_loc = get_offset_location(self.home['lat'], self.home['long'], self.poi['lat'], self.poi['long'],
@@ -87,18 +105,21 @@ class SessionHandler(object):
             self.target_loc = {'lat': offset_loc[0], 'long': offset_loc[1], 'alt': self.poi['alt']}
 
             print("Session Handler: taking off")
-            success, resp = yield self.take_off(3.0)
+            #GFM success, resp = yield self.take_off(3.0)
+            success, resp = await self.take_off(3.0)
             if success:
                 print("Request success: ", resp)
             else:
                 print("Request failed: ", resp)
                 # todo handle takeoff failure
             self.status = 1
-            yield gen.Task(self.redis.set, self.session_id + "_status", self.status)
+            #GFM yield gen.Task(self.redis.set, self.session_id + "_status", self.status)
+            await asyncio.Task(self.redis.set, self.session_id + "_status", self.status)
         if self.status == 1 and self.fuse:
             print("Session Handler: Attaining mission height and correcting heading")
             # todo check that self.home is populated
-            success, resp = yield self.attain_global_setpoint(self.home['lat'], self.home['long'], self.height, 3)
+            #GFM success, resp = yield self.attain_global_setpoint(self.home['lat'], self.home['long'], self.height, 3)
+            success, resp = await self.attain_global_setpoint(self.home['lat'], self.home['long'], self.height, 3)
             if success:
                 print("Session Handler: Request success: ", resp)
             else:
@@ -107,89 +128,111 @@ class SessionHandler(object):
             dist, ang = dist_ang_betn_coordinates(self.home['lat'], self.home['long'],
                                                   self.poi['lat'], self.poi['long'])
             delta_ang = ang - self.home['yaw']
-            success, resp = yield self.attain_yaw_sp(delta_ang)
+            #GFM success, resp = yield self.attain_yaw_sp(delta_ang)
+            success, resp = await self.attain_yaw_sp(delta_ang)
             if success:
                 print("Session Handler: Request success: ", resp)
             else:
                 print("Session Handler: Request failed: ", resp)
                 # todo handle this case
             self.status = 2
-            yield gen.Task(self.redis.set, self.session_id + "_status", self.status)
+            #GFM yield gen.Task(self.redis.set, self.session_id + "_status", self.status)
+            await asyncio.Task(self.redis.set, self.session_id + "_status", self.status)
         if self.status == 2 and self.fuse:
             print("Session Handler: Moving to goal")
-            success, resp = yield self.attain_global_setpoint(self.target_loc['lat'], self.target_loc['long'],
+            #GFM success, resp = yield self.attain_global_setpoint(self.target_loc['lat'], self.target_loc['long'],
+            #                                                  self.height, 3)            
+            success, resp = await self.attain_global_setpoint(self.target_loc['lat'], self.target_loc['long'],
                                                               self.height, 3)
             if success:
                 print("Session Handler: Request success: ", resp)
             else:
                 print("Session Handler: Request failed: ", resp)
             self.status = 3
-            yield gen.Task(self.redis.set, self.session_id + "_status", self.status)
+            #GFM yield gen.Task(self.redis.set, self.session_id + "_status", self.status)
+            await asyncio.Task(self.redis.set, self.session_id + "_status", self.status)
         if self.status == 3 and self.fuse:
             # print "Session Handler: pointing towards user"
             # Nothing here
             self.status = 4
-            yield gen.Task(self.redis.set, self.session_id + "_status", self.status)
+            #GFM yield gen.Task(self.redis.set, self.session_id + "_status", self.status)
+            await asyncio.Task(self.redis.set, self.session_id + "_status", self.status)
             # don't change mission number now, 4 will be used to allow 3rd party access.
         if self.status == 4 and self.fuse:
             print("Session Handler: Waiting at goal", self.wait_time)
-            yield gen.sleep(self.wait_time)
+            #GFM yield gen.sleep(self.wait_time)
+            await asyncio.sleep(self.wait_time)
             print("Session Handler: confirming lock")
-            access_lock = yield self.check_access_lock(4, 100)
+            #GFM access_lock = yield self.check_access_lock(4, 100)
+            access_lock = await self.check_access_lock(4, 100)
             print("Session Handler: acquired lock")
             if not access_lock:
                 print("FATAL!")
             self.status = 5
-            yield gen.Task(self.redis.set, self.session_id + "_status", self.status)
+            #GFM yield gen.Task(self.redis.set, self.session_id + "_status", self.status)
+            await asyncio.Task(self.redis.set, self.session_id + "_status", self.status)
             # continue only if status code is 5 in database. If it is 100 (foreign access)
             # then wait for 10 more seconds before checking
         if self.status == 5 and self.fuse:
             print("Session Handler: Moving back to home")
             # success, resp = yield self.global_sp(self.home['lat'], self.home['long'], self.height, 0., False, False)
-            success, resp = yield self.attain_global_setpoint(self.home['lat'], self.home['long'], self.height, 3)
+            #GFM success, resp = yield self.attain_global_setpoint(self.home['lat'], self.home['long'], self.height, 3)
+            success, resp = await self.attain_global_setpoint(self.home['lat'], self.home['long'], self.height, 3)
             if success:
                 print("Session Handler: Request success: ", resp)
             else:
                 print("Session Handler: Request failed: ", resp)
             self.status = 6
-            yield gen.Task(self.redis.set, self.session_id + "_status", self.status)
+            #GFM yield gen.Task(self.redis.set, self.session_id + "_status", self.status)
+            await asyncio.Task(self.redis.set, self.session_id + "_status", self.status)
         if self.status == 6 and self.fuse:
             print("Session Handler: landing")
-            success, resp = yield self.land()
+            #success, resp = yield self.land()
+            success, resp = await self.land()
             if success:
                 print("Session Handler: Request success: ", resp)
             else:
                 print("Session Handler: Request failed: ", resp)
             self.status = 7
-            yield gen.Task(self.redis.set, self.session_id + "_status", self.status)
+            #GFM yield gen.Task(self.redis.set, self.session_id + "_status", self.status)
+            await asyncio.Task(self.redis.set, self.session_id + "_status", self.status)
         if self.status == 7 and self.fuse:
             print("Session Handler: stopping stream")
-            success, resp = yield self.stop_stream()
+            #GFM success, resp = yield self.stop_stream()
+            success, resp = await self.stop_stream()
             if success:
                 print("Session Handler: Request success: ", resp)
             else:
                 print("Session Handler: Request failed: ", resp)
             self.status = 8
-            yield gen.Task(self.redis.set, self.session_id + "_status", self.status)
+            #GFM yield gen.Task(self.redis.set, self.session_id + "_status", self.status)
+            await asyncio.Task(self.redis.set, self.session_id + "_status", self.status)
         # set_drone free
-        yield self.close_session()
+        #GFM yield self.close_session()
+        await self.close_session()
 
-    @gen.coroutine
-    def check_access_lock(self, wait_case, foreign_case):
+    #GFM @gen.coroutine
+    async def check_access_lock(self, wait_case, foreign_case):
         """return True when access lock is released"""
         # TOdo repeat only 3 times.
-        current_state = yield gen.Task(self.redis.get, self.session_id + "_status")
+        #GFM current_state = yield gen.Task(self.redis.get, self.session_id + "_status")
+        current_state = await asyncio.Task(self.redis.get, self.session_id + "_status")
         if current_state == str(wait_case):
-            raise gen.Return(True)
+            #GFM raise gen.Return(True)
+            raise asyncio.Return(True)
         if current_state == str(foreign_case):
             print("Session Handler: will try to acquire lock again in 10 secs.")
-            yield gen.sleep(10.)
-            res = yield self.check_access_lock(wait_case, foreign_case)
-            raise gen.Return(res)
+            #GFM yield gen.sleep(10.)
+            await asyncio.sleep(10.)
+            #res = yield self.check_access_lock(wait_case, foreign_case)
+            res = await self.check_access_lock(wait_case, foreign_case)
+            #GFM raise gen.Return(res)
+            raise asyncio.Return(res)
 
-    @gen.coroutine
-    def attain_global_setpoint(self, lat, long, height, max_retries=3, max_error_retries=3, r_count=0, re_count=0):
-        success, resp = yield self.global_sp(lat, long, height, 0., False, False)
+    #GFM @gen.coroutine
+    async def attain_global_setpoint(self, lat, long, height, max_retries=3, max_error_retries=3, r_count=0, re_count=0):
+        #GFM success, resp = yield self.global_sp(lat, long, height, 0., False, False)
+        success, resp = await self.global_sp(lat, long, height, 0., False, False)
         if success:
             # print "Request success: ", resp
             max_error_retries = 0
@@ -201,28 +244,37 @@ class SessionHandler(object):
                         print("Session Handler: Target not achieved, retrying: retry no. ", r_count)
                         success, resp = yield self.attain_global_setpoint(lat, long, height, max_retries,
                                                                           max_error_retries, r_count, re_count)
-                        raise gen.Return((success, resp))
+                        #GFM raise gen.Return((success, resp))
+                        raise asyncio.Return((success, resp))
                     else:
-                        raise gen.Return((False, resp))
-                raise gen.Return((True, resp))
+                        #GFM raise gen.Return((False, resp))
+                        raise asyncio.Return((False, resp))
+                #GFM raise gen.Return((True, resp))
+                raise asyncio.Return((True, resp))
             except ValueError:
                 print("drone GPOS sp API json response decode failed", success, resp)
-                raise gen.Return((False, resp))
+                #GFM raise gen.Return((False, resp))
+                raise asyncio.Return((False, resp))
         else:
             max_retries = 0
             if re_count <= max_error_retries:
                 print("Request failed, sending command again: retry no. ", re_count)
                 re_count += 1
-                success, resp = yield self.attain_global_setpoint(lat, long, height, max_retries, max_error_retries,
+                #GFM success, resp = yield self.attain_global_setpoint(lat, long, height, max_retries, max_error_retries,
+                #GFM                                                  r_count, re_count)
+                success, resp = await self.attain_global_setpoint(lat, long, height, max_retries, max_error_retries,
                                                                   r_count, re_count)
-                raise gen.Return((success, resp))
+                #GFM raise gen.Return((success, resp))
+                raise asyncio.Return((success, resp))
             else:
                 print("max error retries reached, sending last value")
-                raise gen.Return((False, resp))
+                #GFM raise gen.Return((False, resp))
+                raise asyncio.Return((False, resp))
 
-    @gen.coroutine
-    def attain_yaw_sp(self, yaw_angle, max_retries=3, max_error_retries=3, r_count=0, re_count=0):
-        success, resp = yield self.local_sp(x=0., y=0., z=0., yaw=yaw_angle, yaw_valid=True, relative=True)
+    #GFM @gen.coroutine
+    async def attain_yaw_sp(self, yaw_angle, max_retries=3, max_error_retries=3, r_count=0, re_count=0):
+        #GFM success, resp = yield self.local_sp(x=0., y=0., z=0., yaw=yaw_angle, yaw_valid=True, relative=True)
+        success, resp = await self.local_sp(x=0., y=0., z=0., yaw=yaw_angle, yaw_valid=True, relative=True)
         if success:
             max_error_retries = 0
             try:
@@ -231,34 +283,48 @@ class SessionHandler(object):
                     if r_count <= max_retries:
                         r_count += 1
                         print("Drone not reached target, sending pos set command again: retry no. ", r_count)
-                        success, resp = yield self.yaw_sp(self, yaw_angle, max_retries=max_retries,
+                        #GFM success, resp = yield self.yaw_sp(self, yaw_angle, max_retries=max_retries,
+                        #GFM                                 max_error_retries=max_error_retries, r_count=0, re_count=0)
+                        success, resp = await self.yaw_sp(self, yaw_angle, max_retries=max_retries,
                                                           max_error_retries=max_error_retries, r_count=0, re_count=0)
-                        raise gen.Return((success, resp))
+                        #GFM raise gen.Return((success, resp))
+                        raise asyncio.Return((success, resp))
                     else:
-                        raise gen.Return((False, resp))
-                raise gen.Return((True, resp))
+                        #GFM raise gen.Return((False, resp))
+                        raise asyncio.Return((False, resp))
+                #GFM raise gen.Return((True, resp))
+                raise asyncio.Return((True, resp))
             except ValueError:
                 print("drone local sp API json response decode failed", success, resp)
-                raise gen.Return((False, resp))
+                #GFM raise gen.Return((False, resp))
+                raise asyncio.Return((False, resp))
         else:
             max_retries = 0
             if re_count <= max_error_retries:
                 print("Request failed, sending command again: retry no. ", re_count)
                 re_count += 1
-                success, resp = yield self.yaw_sp(self, yaw_angle, max_retries=max_retries,
+                #GFM  success, resp = yield self.yaw_sp(self, yaw_angle, max_retries=max_retries,
+                #                                  max_error_retries=max_error_retries, r_count=0, re_count=0)
+                success, resp = await self.yaw_sp(self, yaw_angle, max_retries=max_retries,
                                                   max_error_retries=max_error_retries, r_count=0, re_count=0)
-                raise gen.Return((success, resp))
+                #GFM raise gen.Return((success, resp))
+                raise asyncio.Return((success, resp))
             else:
                 print("max error retries reached, sending last value")
-                raise gen.Return((False, resp))
+                #GFM raise gen.Return((False, resp))
+                raise asyncio.Return((False, resp))
 
-    @gen.coroutine
-    def get_drone_state(self):
+    #GFM @gen.coroutine
+    async def get_drone_state(self):
         """fetch latest updated state"""
-        gpos = yield gen.Task(self.redis.get, self.vehicle_id + '_gpos')
-        lpos = yield gen.Task(self.redis.get, self.vehicle_id + '_lpos')
-        batt = yield gen.Task(self.redis.get, self.vehicle_id + '_batt')
-        imu = yield gen.Task(self.redis.get, self.vehicle_id + '_imu')
+        #GFM gpos = yield gen.Task(self.redis.get, self.vehicle_id + '_gpos')
+        gpos = await asyncio.Task(self.redis.get, self.vehicle_id + '_gpos')
+        #GFM lpos = yield gen.Task(self.redis.get, self.vehicle_id + '_lpos')
+        lpos = await asyncio.Task(self.redis.get, self.vehicle_id + '_lpos')
+        #GFM batt = yield gen.Task(self.redis.get, self.vehicle_id + '_batt')
+        batt = await asyncio.Task(self.redis.get, self.vehicle_id + '_batt')
+        #GFM imu = yield gen.Task(self.redis.get, self.vehicle_id + '_imu')
+        imu = await asyncio.Task(self.redis.get, self.vehicle_id + '_imu')
         try:
             gpos = json.loads(gpos)
             lpos = json.loads(lpos)
@@ -266,12 +332,13 @@ class SessionHandler(object):
             imu = json.loads(imu)
             drone_state = {"lat": gpos['lat'], "long": gpos['long'], "a_alt": gpos['alt'],
                            "alt": lpos['z'], 'batt': batt['percent'], 'yaw': imu['yaw']}
-            raise gen.Return(drone_state)
+            #GFM raise gen.Return(drone_state)
+            raise asyncio.Return(drone_state)
         except ValueError:
             print("JSON decode error drone live status, session")
 
-    @gen.coroutine
-    def start_stream(self):
+    #GFM @gen.coroutine
+    async def start_stream(self):
         url = self.api_base_url + '/video_streaming/start_raspicam_stream'
         body = json.dumps({'image_width': 0,
                            'image_height': 0,
@@ -283,50 +350,65 @@ class SessionHandler(object):
                            'remote_target': True,
                            'bitrate': 0})
 
-        response = yield gen.Task(self.http_client.fetch, url, method='POST', headers=self.header,
+        #GFM response = yield gen.Task(self.http_client.fetch, url, method='POST', headers=self.header,
+        #                          body=body, request_timeout=180.0)
+        response = await asyncio.Task(self.http_client.fetch, url, method='POST', headers=self.header,
                                   body=body, request_timeout=180.0)
         if response.error:
-            raise gen.Return((False, response.error))
+            #GFM raise gen.Return((False, response.error))
+            raise asyncio.Return((False, response.error))
         else:
-            raise gen.Return((True, response.body))
+            #GFM raise gen.Return((True, response.body))
+            raise asyncio.Return((True, response.body))
 
-    @gen.coroutine
-    def stop_stream(self):
+    #GFM @gen.coroutine
+    async def stop_stream(self):
         url = self.api_base_url + '/video_streaming/stop_raspicam_stream'
 
-        response = yield gen.Task(self.http_client.fetch, url, method='GET', headers=self.header, request_timeout=180.0)
+        #GFM response = yield gen.Task(self.http_client.fetch, url, method='GET', headers=self.header, request_timeout=180.0)
+        response = await asyncio.Task(self.http_client.fetch, url, method='GET', headers=self.header, request_timeout=180.0)
 
         if response.error:
-            raise gen.Return((False, response.error))
+            #GFM raise gen.Return((False, response.error))
+            raise asyncio.Return((False, response.error))
         else:
-            raise gen.Return((True, response.body))
+            #GFM raise gen.Return((True, response.body))
+            raise asyncio.Return((True, response.body))
 
-    @gen.coroutine
-    def take_off(self, height):
+    #GFM @gen.coroutine
+    async def take_off(self, height):
         url = self.api_base_url + '/navigation/take_off'
         body = json.dumps({"takeoff_alt": height})
 
-        response = yield gen.Task(self.http_client.fetch, url, method='POST', headers=self.header,
+        #GFM response = yield gen.Task(self.http_client.fetch, url, method='POST', headers=self.header,
+        #                          body=body, request_timeout=180.0)
+        response = await asyncio.Task(self.http_client.fetch, url, method='POST', headers=self.header,
                                   body=body, request_timeout=180.0)
         if response.error:
-            raise gen.Return((False, response.error))
+            #GFM raise gen.Return((False, response.error))
+            raise asyncio.Return((False, response.error))
         else:
-            raise gen.Return((True, response.body))
+            #GFM raise gen.Return((True, response.body))
+            raise asyncio.Return((True, response.body))
 
-    @gen.coroutine
-    def land(self):
+    #GFM @gen.coroutine
+    async def land(self):
         url = self.api_base_url + '/navigation/land'
         body = json.dumps({"async": False})
 
-        response = yield gen.Task(self.http_client.fetch, url, method='POST', headers=self.header,
+        #GFMresponse = yield gen.Task(self.http_client.fetch, url, method='POST', headers=self.header,
+        #                          body=body, request_timeout=180.0)
+        response = await asyncio.Task(self.http_client.fetch, url, method='POST', headers=self.header,
                                   body=body, request_timeout=180.0)
         if response.error:
-            raise gen.Return((False, response.error))
+            #GFM raise gen.Return((False, response.error))
+            raise asyncio.Return((False, response.error))
         else:
-            raise gen.Return((True, response.body))
+            #GFM raise gen.Return((True, response.body))
+            raise asyncio.Return((True, response.body))
 
-    @gen.coroutine
-    def global_sp(self, lat, long, alt, yaw, yaw_valid, is_async):
+    #GFM @gen.coroutine
+    async def global_sp(self, lat, long, alt, yaw, yaw_valid, is_async):
         url = self.api_base_url + '/navigation/position_set_global'
         body = json.dumps({
             "lat_x": lat,
@@ -338,15 +420,19 @@ class SessionHandler(object):
             "yaw_valid": yaw_valid
         })
         # print body, "wp sent to drone"
-        response = yield gen.Task(self.http_client.fetch, url, method='POST', headers=self.header,
+        #GFM response = yield gen.Task(self.http_client.fetch, url, method='POST', headers=self.header,
+        #                          body=body, request_timeout=50.0)
+        response = await asyncio.Task(self.http_client.fetch, url, method='POST', headers=self.header,
                                   body=body, request_timeout=50.0)
         if response.error:
-            raise gen.Return((False, response.error))
+            #GFM raise gen.Return((False, response.error))
+            raise asyncio.Return((False, response.error))
         else:
-            raise gen.Return((True, response.body))
+            #raise gen.Return((True, response.body))
+            raise asyncio.Return((True, response.body))
 
-    @gen.coroutine
-    def local_sp(self, x, y, z, yaw, yaw_valid, relative):
+    #GFM @gen.coroutine
+    async def local_sp(self, x, y, z, yaw, yaw_valid, relative):
         url = self.api_base_url + '/navigation/position_set'
         body = json.dumps({
             "x": x,
@@ -360,14 +446,19 @@ class SessionHandler(object):
             "body_frame": False
 
         })
-        response = yield gen.Task(self.http_client.fetch, url, method='POST', headers=self.header,
+        #GFM response = yield gen.Task(self.http_client.fetch, url, method='POST', headers=self.header,
+        #                          body=body, request_timeout=50.0)
+        response = await asyncio.Task(self.http_client.fetch, url, method='POST', headers=self.header,
                                   body=body, request_timeout=50.0)
         if response.error:
-            raise gen.Return((False, response.error))
+            #GFM raise gen.Return((False, response.error))
+            raise asyncio.Return((False, response.error))
         else:
-            raise gen.Return((True, response.body))
+            #GFM raise gen.Return((True, response.body))
+            raise asyncio.Return((True, response.body))
 
-    @gen.coroutine
-    def close_session(self):
+    #GFM @gen.coroutine
+    async def close_session(self):
         print("Session Handler: Session complete, freeing the resources")
-        yield gen.Task(self.redis.set, self.vehicle_id + '_status', 0)
+        #GFM yield gen.Task(self.redis.set, self.vehicle_id + '_status', 0)
+        await asyncio.Task(self.redis.set, self.vehicle_id + '_status', 0)
