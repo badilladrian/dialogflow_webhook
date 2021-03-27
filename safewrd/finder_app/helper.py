@@ -2,12 +2,17 @@
 FLYTBASE INC grants Customer a perpetual, non-exclusive, royalty-free license to use this software.
  All copyrights, patent rights, and other intellectual property rights for this software are retained by FLYTBASE INC.
 """
+# Change of the library for Tornado 6.1
+#Giovanni Fonseca
+import asyncio
+import tornado.ioloop
+from tornado import ioloop
+from tornado.iostream import IOStream
 
 from tornado import gen
 from tornado import httpclient
 from tornado import httputil
 from tornado import websocket
-from tornado import ioloop
 
 import time
 import functools
@@ -61,6 +66,8 @@ class MsgStructs(object):
 class WebSocketClientBase(object):
     """Base class for websocket client
     """
+    # Updated for Giovanni Fonseca
+    # date: 26-03-2021
 
     def __init__(self):
         self.connect_timeout = 60
@@ -77,7 +84,8 @@ class WebSocketClientBase(object):
                                          connect_timeout=self.connect_timeout,
                                          request_timeout=self.request_timeout,
                                          headers=headers)
-        ws_conn = websocket.WebSocketClientConnection(ioloop.IOLoop.current(),
+        
+        ws_conn = websocket.WebSocketClientConnection(tornado.ioloop.ioloop.IOLoop.current(),
                                                       request)
         ws_conn.connect_future.add_done_callback(self._connect_callback)
 
@@ -105,10 +113,11 @@ class WebSocketClientBase(object):
         else:
             self._on_connection_error(future.exception())
 
-    @gen.coroutine
-    def _read_messages(self):
+    # @gen.coroutine
+    async def _read_messages(self):
         while True:
-            msg = yield self._ws_connection.read_message()
+            # GFM msg = yield self._ws_connection.read_message()
+            msg = await self._ws_connection.read_message()            
             if msg is None:
                 self._on_connection_close()
                 break
@@ -160,14 +169,17 @@ class WebSocketClient(WebSocketClientBase):
     def _on_message(self, msg):
         try:
             res = json.loads(msg)
-            ioloop.IOLoop.instance().add_callback(partial(self.parse_msg, res))
+            # GFM ioloop.IOLoop.instance().add_callback(partial(self.parse_msg, res))
+            ioloop.IOLoop.current().add_callback(partial(self.parse_msg, res))
+            
         except ValueError:
             print("json decoding failed")
 
     def _on_connection_success(self):
         print('Drone Connected! ', self.vehicle_id)
         deadline = time.time() + 1
-        ioloop.IOLoop().instance().add_timeout(deadline, functools.partial(self.subscribe_to_topics))
+        # GFM ioloop.IOLoop().instance().add_timeout(deadline, functools.partial(self.subscribe_to_topics))
+        ioloop.IOLoop.current().add_timeout(deadline, functools.partial(self.subscribe_to_topics))
 
     def _on_connection_close(self):
         print('Connection closed!')
@@ -248,8 +260,8 @@ class DroneRemoteAccess(object):
         # instance of non blocking http client
         self.http_client = httpclient.AsyncHTTPClient()
 
-    @gen.coroutine
-    def local_sp(self, x, y, z, yaw, yaw_valid, relative):
+    #GFM @gen.coroutine
+    async def local_sp(self, x, y, z, yaw, yaw_valid, relative):
         url = self.api_base_url + '/navigation/position_set'
         body = json.dumps({
             "x": x,
@@ -263,25 +275,33 @@ class DroneRemoteAccess(object):
             "body_frame": False
 
         })
-        response = yield gen.Task(self.http_client.fetch, url, method='POST', headers=self.header,
+        #GFM response = yield gen.Task(self.http_client.fetch, url, method='POST', headers=self.header,
+        #GFM                          body=body, request_timeout=50.0)        
+        response = await asyncio.Task(self.http_client.fetch, url, method='POST', headers=self.header,
                                   body=body, request_timeout=50.0)
+        
         if response.error:
-            raise gen.Return((False, response.error))
+            raise asyncio.Return((False, response.error))
         else:
-            raise gen.Return((True, response.body))
+            raise asyncio.Return((True, response.body))
 
-    @gen.coroutine
-    def attain_local_setpoint(self, x, y, z, yaw, yaw_valid, max_error_retries=3, re_count=0):
-        success, resp = yield self.local_sp(x,y,z,yaw,yaw_valid,True)
+    #GFM @gen.coroutine
+    async def attain_local_setpoint(self, x, y, z, yaw, yaw_valid, max_error_retries=3, re_count=0):
+        # GFM success, resp = yield self.local_sp(x,y,z,yaw,yaw_valid,True)        
+        success, resp = await self.local_sp(x,y,z,yaw,yaw_valid,True)
         if not success:
             if re_count <= max_error_retries:
                 print("Request failed, sending command again: retry no. ", re_count)
                 re_count += 1
-                success, resp = yield self.local_sp(x,y,z,yaw,yaw_valid,True,max_error_retries,re_count)
-                raise gen.Return((success, resp))
+                #GFM success, resp = yield self.local_sp(x,y,z,yaw,yaw_valid,True,max_error_retries,re_count)
+                success, resp = await self.local_sp(x,y,z,yaw,yaw_valid,True,max_error_retries,re_count)                
+                #GFM raise gen.Return((success, resp))
+                raise asyncio.Return((success, resp))
             else:
                 print("max error retries reached, sending last value")
-                raise gen.Return((False, resp))
+                #GFM raise gen.Return((False, resp))
+                raise asyncio.Return((False, resp))
         else:
-            raise gen.Return((True, resp))
+            #GFM raise gen.Return((True, resp))
+            raise asyncio.Return((True, resp))
 

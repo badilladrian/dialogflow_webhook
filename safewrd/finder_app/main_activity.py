@@ -2,6 +2,11 @@
 FLYTBASE INC grants Customer a perpetual, non-exclusive, royalty-free license to use this software.
  All copyrights, patent rights, and other intellectual property rights for this software are retained by FLYTBASE INC.
 """
+"""
+    Update library Tornado 6.1
+    Author: Giovanni Fonseca
+    Date due: 25-03-2021
+"""
 
 import operator
 
@@ -265,7 +270,7 @@ class SessionAccessHandler(RequestHandler):
                         # gather session and drone information
                         await asyncio.Task(redis_main.set, self.session_id + '_status', 100)
                         
-                        session_info_g = await  asyncio.Task(redis_main.get, self.session_id+'_info')
+                        session_info_g = await asyncio.Task(redis_main.get, self.session_id+'_info')
                         
                         session_info = json.loads(session_info_g)
                         self.drone_veh_id = session_info['vehicle_id']
@@ -278,8 +283,12 @@ class SessionAccessHandler(RequestHandler):
                         # Submit the request to drone
                         self.ActionController = DroneRemoteAccess(self.drone_veh_id, self.drone_api_key, self.drone_ns)
                         print("RemoteAccess: Got the lock for 10 sec, performing action")
-                        success, resp = yield self.ActionController.attain_local_setpoint(self.sp_x, self.sp_y, self.sp_z,
+                        
+                        #GFM success, resp = yield self.ActionController.attain_local_setpoint(self.sp_x, self.sp_y, self.sp_z,
+                        #GFM                                                  self.sp_yaw, self.sp_yaw_valid )
+                        success, resp = await self.ActionController.attain_local_setpoint(self.sp_x, self.sp_y, self.sp_z,
                                                                           self.sp_yaw, self.sp_yaw_valid )
+                        
                         if success:
                             print("RemoteAccess: Remote Request success: ", resp)
                         else:
