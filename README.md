@@ -1,5 +1,9 @@
-# safewrd_drone
+# Dialogflow Webhook Project
 
-Old Python version: 2.7.0
+## Installation process
 
-New Python version: 3.8.0
+* CLone this repository
+* Install & turn on virtual environment
+* Install all packages from requirements.txt file
+* Run `pyton wsgi.py`
+* Test in browser by this url `http://localhost:5000`
