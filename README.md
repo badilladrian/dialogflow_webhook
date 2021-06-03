@@ -1,8 +1,6 @@
 # Dialogflow Webhook Project
 
 ## Installation process
-
-* CLone this repository
 * Install & turn on virtual environment
 * Install all packages from requirements.txt file
 * Run `pyton wsgi.py`
