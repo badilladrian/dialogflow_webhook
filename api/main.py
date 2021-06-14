@@ -61,6 +61,15 @@ def results():
     return ({"data": response_data[action]}, 200) if action in response_data.keys() else (
     {"data": "Sorry for now we've no service for that"}, 404)
 
+@app.route("/api/FetchData",methods=["POST",])
+def FetchData():
+    user_id=None
+    print(request.json)
+    mac_address= request.json["mac_address"]
+    health_stats={"heart_rate":request.json["heart_rate"],"glucose":request.json["glucose"],"geolocation":request.json["geolocation"],"blood_pressure":request.json["blood_pressure"]}
+    print(health_stats)
+    updatehealthstats(mac_address,health_stats)
+    return make_response("",200)
 
 # create a route for webhook
 @app.route('/dialogflow-webhook', methods=['POST'])

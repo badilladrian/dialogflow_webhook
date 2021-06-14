@@ -18,7 +18,7 @@ def AddDataToTable(email_id=None,user_name=None):
     except pymongo.errors.DuplicateKeyError:
         pass
 
-def AddRelativeDataTotable(user_email_id=None,user_name=None,relation=None,healthstats=None):
+def AddRelativeDataTotable(user_email_id=None,user_name=None,relation=None,healthstats=None,mac_address=None):
     try:
         db = GetConnection()
         mydoc = db["RelativeTable"]
