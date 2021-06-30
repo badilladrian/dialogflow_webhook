@@ -206,7 +206,7 @@ def nanahealthbot():
     if request.json["queryResult"]["intent"]["displayName"]=="EditRelative - custom":
         text= request.json["queryResult"]['parameters']["type"]
         change=request.json["queryResult"]['parameters']["change"]["name"]
-        key=request.json["queryResult"]["outputContexts"][5]["parameters"]["key"]
+        key=request.json["queryResult"]["parameters"]["key"]
         print(text.lower(),change.lower(),key.lower())
         name,relation= editby(key.lower(),text.lower(),change.lower())
         return  {'fulfillmentText':"i Have added {}, as your {}".format(name,relation)}
@@ -214,7 +214,7 @@ def nanahealthbot():
     if request.json["queryResult"]["intent"]["displayName"]=="EditRelative - custom-2":
         text= request.json["queryResult"]['parameters']["whom"]["name"]
         change=request.json["queryResult"]['parameters']["modify"]
-        key=request.json["queryResult"]["outputContexts"][6]["parameters"]["key"]
+        key=request.json["queryResult"]["parameters"]["key"]
         key=key.split(",")
         for i in key:
             if i.endswith(text):
@@ -225,7 +225,7 @@ def nanahealthbot():
     #if user select relative which he wants to delete  and single relative with same name exist
     if request.json["queryResult"]["intent"]["displayName"]=="deleterelative - custom":
         text= request.json["queryResult"]['parameters']["sure"]
-        key=request.json["queryResult"]["outputContexts"][7]["parameters"]["key"]
+        key=request.json["queryResult"]["parameters"]["key"]
         print(text.lower())
         if text=="yes":
             deleteby(key.lower())
@@ -255,7 +255,7 @@ def nanahealthbot():
     #if user select relative which he wants to delete  and multiple relative with same name exist
     if request.json["queryResult"]["intent"]["displayName"]=="deleterelative - custom-2":
         text= request.json["queryResult"]['parameters']["whom"]["name"]
-        key=request.json["queryResult"]["outputContexts"][7]["parameters"]["key"]
+        key=request.json["queryResult"]["parameters"]["key"]
         key=key.split(",")
         for i in key:
             if i.endswith(text):
