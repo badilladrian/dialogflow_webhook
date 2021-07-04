@@ -127,58 +127,63 @@ def nanahealthbot():
             return {"followupEventInput":{"name":"again","languageCode": "en-US"}}
     # if user ask for blood_pressure
     if request.json["queryResult"]["intent"]["displayName"]=="health.blood_pressure":
-        print("blood_pressure")
-        text= request.json["queryResult"]["queryText"]
-        data,rel,isname=finddata(email,text.lower())
-        if data!=None and isname== True:
-            return {'fulfillmentText':"{} blood_pressure is {}".format(rel,data["healthstats"]["blood_pressure"])}
-        if data!=None and isname== False:
-            return {'fulfillmentText':"your {} blood_pressure is {}".format(rel,data["healthstats"]["blood_pressure"])}
-        else:
+        try:
+            print("blood_pressure")
+            text= request.json["queryResult"]["queryText"]
+            data,rel,isname=finddata(email,text.lower())
+            if data!=None and isname== True:
+                return {'fulfillmentText':"{} blood_pressure is {}".format(rel,data["healthstats"]["blood_pressure"])}
+            if data!=None and isname== False:
+                return {'fulfillmentText':"your {} blood_pressure is {}".format(rel,data["healthstats"]["blood_pressure"])}
+        except:
             return {'fulfillmentText': 'no data found.'}
     #if user ask for glucose
     if request.json["queryResult"]["intent"]["displayName"]=="health.glucose":
-        text= request.json["queryResult"]["queryText"]
-        data,rel,isname=finddata(email,text.lower())
-        if data!=None and isname== True:
-            return {'fulfillmentText':"{} glucose is {}".format(rel,data["healthstats"]["glucose"])}
-        if data!=None and isname== False:
-            return {'fulfillmentText':"your {} glucose is {}".format(rel,data["healthstats"]["glucose"])}
-        else:
+        try:
+            text= request.json["queryResult"]["queryText"]
+            data,rel,isname=finddata(email,text.lower())
+            if data!=None and isname== True:
+                return {'fulfillmentText':"{} glucose is {}".format(rel,data["healthstats"]["glucose"])}
+            if data!=None and isname== False:
+                return {'fulfillmentText':"your {} glucose is {}".format(rel,data["healthstats"]["glucose"])}
+        except:
             return {'fulfillmentText': 'no data found.'}
     #if user ask for  heart rate
     if request.json["queryResult"]["intent"]["displayName"]=="health.heart_rate":
-        text= request.json["queryResult"]["queryText"]
-        data,rel,isname=finddata(email,text.lower())
-        if data!=None and isname== True:
-            return {'fulfillmentText':"{} heart_rate is {}".format(rel,data["healthstats"]["heart_rate"])}
-        if data!=None and isname== False:
-            return {'fulfillmentText':"your {} heart_rate is {}".format(rel,data["healthstats"]["heart_rate"])}
-        else:
+        try:
+            text= request.json["queryResult"]["queryText"]
+            data,rel,isname=finddata(email,text.lower())
+            if data!=None and isname== True:
+                return {'fulfillmentText':"{} heart_rate is {}".format(rel,data["healthstats"]["heart_rate"])}
+            if data!=None and isname== False:
+                return {'fulfillmentText':"your {} heart_rate is {}".format(rel,data["healthstats"]["heart_rate"])}
+        except:
             return {'fulfillmentText': 'no data found.'}
     # ask for location
     if request.json["queryResult"]["intent"]["displayName"]=="health.location":
-        text= request.json["queryResult"]["queryText"]
-        data,rel,isname=finddata(email,text.lower())
-        if data!=None and isname== True:
-            return {'fulfillmentText':"{} location is at Longitude {} and latitude {}".format(rel,data["healthstats"]["geolocation"]["Lon"],data["healthstats"]["geolocation"]["Lat"])}
-        if data!=None and isname== False:
-            return {'fulfillmentText':"your {} location is at Longitude {} and latitude {}".format(rel,data["healthstats"]["geolocation"]["Lon"],data["healthstats"]["geolocation"]["Lat"])}
-        else:
+        try:
+            text= request.json["queryResult"]["queryText"]
+            data,rel,isname=finddata(email,text.lower())
+            if data!=None and isname== True:
+                return {'fulfillmentText':"{} location is at Longitude {} and latitude {}".format(rel,data["healthstats"]["geolocation"]["Lon"],data["healthstats"]["geolocation"]["Lat"])}
+            if data!=None and isname== False:
+                return {'fulfillmentText':"your {} location is at Longitude {} and latitude {}".format(rel,data["healthstats"]["geolocation"]["Lon"],data["healthstats"]["geolocation"]["Lat"])}
+        except:
             return {'fulfillmentText': 'no data found.'}
     # if user ask for full state
     if request.json["queryResult"]["intent"]["displayName"]=="health.full_stats":
-        text= request.json["queryResult"]["queryText"]
-        data,rel,isname=finddata(email,text.lower())
-        if data!=None and isname==True:
-            return  {'fulfillmentText':"{} is feeling {}, BMP location is at Longitude {} and latitude {} glucose is {} ,blood_pressure is {}".format(data["username"],
-            data["healthstats"]["blood_pressure"],data["healthstats"]["geolocation"]["Lon"],
-            data["healthstats"]["geolocation"]["Lat"],data["healthstats"]["glucose"],data["healthstats"]["blood_pressure"])}
-        if data!=None and isname== False:
-            return  {'fulfillmentText':"{} is feeling {}, BMP location is at Longitude {} and latitude {}, glucose is {}, blood_pressure is {}".format(data["username"],
-            data["healthstats"]["blood_pressure"],data["healthstats"]["geolocation"]["Lon"],
-            data["healthstats"]["geolocation"]["Lat"],data["healthstats"]["glucose"],data["healthstats"]["blood_pressure"])}
-        else:
+        try:
+            text= request.json["queryResult"]["queryText"]
+            data,rel,isname=finddata(email,text.lower())
+            if data!=None and isname==True:
+                return  {'fulfillmentText':"{} is feeling {}, BMP location is at Longitude {} and latitude {} glucose is {} ,blood_pressure is {}".format(data["username"],
+                data["healthstats"]["blood_pressure"],data["healthstats"]["geolocation"]["Lon"],
+                data["healthstats"]["geolocation"]["Lat"],data["healthstats"]["glucose"],data["healthstats"]["blood_pressure"])}
+            if data!=None and isname== False:
+                return  {'fulfillmentText':"{} is feeling {}, BMP location is at Longitude {} and latitude {}, glucose is {}, blood_pressure is {}".format(data["username"],
+                data["healthstats"]["blood_pressure"],data["healthstats"]["geolocation"]["Lon"],
+                data["healthstats"]["geolocation"]["Lat"],data["healthstats"]["glucose"],data["healthstats"]["blood_pressure"])}
+        except:
             return{ 'fulfillmentText': 'no data found.'}
     # if user want to edit relative 
     if request.json["queryResult"]["intent"]["displayName"]=="EditRelative":
@@ -254,18 +259,19 @@ def nanahealthbot():
             return{ 'fulfillmentText': 'no data found.'}
     #user ask for temprature
     if request.json["queryResult"]["intent"]["displayName"]=="health.temprature":
-        text= request.json["queryResult"]["queryText"]
-        data,rel,isname=finddata(email,text.lower())
-        # print(data)
-        if data!=None and isname== True:
+        try:
+            text= request.json["queryResult"]["queryText"]
+            data,rel,isname=finddata(email,text.lower())
             # print(data)
-            # {'fulfillmentText':data["healthstats"]["geolocation"]}
-            return {'fulfillmentText':"{} body temprature is {} ".format(rel,data["healthstats"]["temprature"])}
-        if data!=None and isname== False:
-            # print(data)
-            # {'fulfillmentText':data["healthstats"]["geolocation"]}
-            return {'fulfillmentText':"your {} temprature is {}".format(rel,data["healthstats"]["temprature"])}
-        else:
+            if data!=None and isname== True:
+                # print(data)
+                # {'fulfillmentText':data["healthstats"]["geolocation"]}
+                return {'fulfillmentText':"{} body temprature is {} ".format(rel,data["healthstats"]["temprature"])}
+            if data!=None and isname== False:
+                # print(data)
+                # {'fulfillmentText':data["healthstats"]["geolocation"]}
+                return {'fulfillmentText':"your {} temprature is {}".format(rel,data["healthstats"]["temprature"])}
+        except:
             return {'fulfillmentText': 'no data found.'}
     #if user select relative which he wants to delete  and multiple relative with same name exist
     if request.json["queryResult"]["intent"]["displayName"]=="deleterelative - custom-2":
