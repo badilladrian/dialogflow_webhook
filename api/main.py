@@ -104,7 +104,7 @@ def nanahealthbot():
         else:
             print("notadded")
             return {"followupEventInput":{"name":"notadded","parameters":{
-        "data":"you alredy have {}as your {},do you wish to add another members?".format(name,relation),},"languageCode": "en-US"}}
+        "data":"you already have {} as your {},do you wish to add another members?".format(name,relation),},"languageCode": "en-US"}}
     #if user relative is added to data  
     if request.json["queryResult"]["intent"]["displayName"]=="OnBording - yes - added":
         isreply=request.json["queryResult"]['parameters']["reply"]
