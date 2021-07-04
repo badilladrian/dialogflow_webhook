@@ -252,6 +252,21 @@ def nanahealthbot():
         "data":string+"which one?","key":key },"languageCode": "en-US"}}
         except:
             return{ 'fulfillmentText': 'no data found.'}
+    #user ask for temprature
+    if request.json["queryResult"]["intent"]["displayName"]=="health.temprature":
+        text= request.json["queryResult"]["queryText"]
+        data,rel,isname=finddata(email,text.lower())
+        # print(data)
+        if data!=None and isname== True:
+            # print(data)
+            # {'fulfillmentText':data["healthstats"]["geolocation"]}
+            return {'fulfillmentText':"{} body temprature is {} ".format(rel,data["healthstats"]["temprature"])}
+        if data!=None and isname== False:
+            # print(data)
+            # {'fulfillmentText':data["healthstats"]["geolocation"]}
+            return {'fulfillmentText':"your {} temprature is {}".format(rel,data["healthstats"]["temprature"])}
+        else:
+            return {'fulfillmentText': 'no data found.'}
     #if user select relative which he wants to delete  and multiple relative with same name exist
     if request.json["queryResult"]["intent"]["displayName"]=="deleterelative - custom-2":
         text= request.json["queryResult"]['parameters']["whom"]["name"]
