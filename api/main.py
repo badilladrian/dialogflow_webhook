@@ -3,7 +3,7 @@ import flask
 import datetime
 import os
 from flask import request, jsonify, make_response
-from help import AddDataToTable,AddRelativeDataTotable,getRelativeData,updatehealthstats,editby,deleteby
+from .help import AddDataToTable,AddRelativeDataTotable,getRelativeData,updatehealthstats,editby,deleteby
 from flask_cors import CORS, cross_origin
 import logging
 import nltk
@@ -72,7 +72,7 @@ def FetchData():
     return make_response("",200)
 
 # create a route for webhook
-@app.route('/dialogflow-webhook', methods=['POST'])
+@app.route('/dialogflow-webhook', methods=['GET','POST'])
 def nanahealthbot():
     #get account details using ifd token
     response = requests.get("https://oauth2.googleapis.com/tokeninfo?id_token="+request.json["originalDetectIntentRequest"]["payload"]["user"]["idToken"])

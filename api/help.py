@@ -1,13 +1,10 @@
-from Config import GetConnection
+from .Config import GetConnection
 import pymongo
 
 def AddDataToTable(email_id=None,user_name=None):
     try:
         db = GetConnection()
         mydoc = db["safeWrdUserTable"]
-        # email_id= "ashish.giri@rampwin.com"
-        # mobile_no="8560024639"
-        # user_name= "Ashish"
         Item={
             '_id': email_id,
             'user_name': user_name,
